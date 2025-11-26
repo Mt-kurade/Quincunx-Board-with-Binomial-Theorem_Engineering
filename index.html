@@ -130,541 +130,90 @@
     
     </div>
     </div>
-    <script>
-        // --- Configuration Constants ---
-        const ROWS = 12;
-        const BINS = 13; // 12 rows means 13 possible bin positions (0 to 12)
-        const PEG_RADIUS = 4;
-        const BALL_RADIUS = 6;
-        const SPACING = 40;
-        const START_X = 300;
-        const START_Y = 80;
-        const FUNNEL_Y = 20;
+<script>
+const newBins = bins.slice();
+const remaining = [];
+for(const b of balls){ b.update(dt); if(!b.moving && b.binIndex>=0) newBins[b.binIndex]++; else remaining.push(b); }
+balls = remaining; bins = newBins;
 
-        // --- Global State ---
-        let canvas, ctx;
-        let isRunning = false;
-        let balls = [];
-        let bins = Array(BINS).fill(0);
-        let speed = 2;
-        let probability = 0.5;
-        let showTheory = true;
 
-        let animationFrameId = null;
-        let ballIntervalId = null;
+// draw
+ctx.clearRect(0,0,canvas.width,canvas.height);
+drawBackground(); drawPegs(); drawBallsList(); drawBins(bins); drawFormulaText();
 
-        // --- Utility Functions ---
 
-        /**
-         * Calculates the binomial coefficient C(n, k).
-         * @param {number} n - The total number of trials (rows).
-         * @param {number} k - The number of successful outcomes (right turns).
-         * @returns {number} The binomial coefficient.
-         */
-        const binomialCoefficient = (n, k) => {
-            if (k < 0 || k > n) return 0;
-            if (k === 0 || k === n) return 1;
+document.getElementById('totalCount').textContent = bins.reduce((a,b)=>a+b,0);
 
-            // Optimization for C(n, k) = C(n, n-k)
-            if (k > n / 2) k = n - k;
 
-            let result = 1;
-            for (let i = 1; i <= k; i++) {
-                result = result * (n - i + 1) / i;
-            }
-            return result;
-        };
+if(isRunning) animationId = requestAnimationFrame(animate); else animationId = null;
+}
 
-        /**
-         * Calculates the binomial probability P(X = k).
-         * @param {number} n - The number of rows.
-         * @param {number} k - The number of right turns.
-         * @param {number} p - The probability of turning right.
-         * @returns {number} The probability.
-         */
-        const binomialProbability = (n, k, p) => {
-            const q = 1 - p;
-            return binomialCoefficient(n, k) * Math.pow(p, k) * Math.pow(q, n - k);
-        };
 
-        /**
-         * Calculates the theoretical distribution counts for the current total balls.
-         * @param {number} totalBalls - The total number of balls dropped so far.
-         * @returns {number[]} Array of theoretical counts per bin.
-         */
-        const getTheoreticalDistribution = (totalBalls) => {
-            const theoretical = [];
-            // k represents the number of right turns (0 to ROWS)
-            for (let k = 0; k <= ROWS; k++) {
-                const prob = binomialProbability(ROWS, k, probability);
-                theoretical.push(prob * totalBalls);
-            }
-            return theoretical;
-        };
+// --- Controls & events ---
+document.getElementById('toggleBtn').addEventListener('click', ()=>{
+isRunning = !isRunning; document.getElementById('toggleText').textContent = isRunning? 'Pause':'Start';
+if(isRunning){ startDropping(); lastTs = 0; animationId = requestAnimationFrame(animate); } else { stopDropping(); }
+});
 
-        // --- Ball Class (State/Physics) ---
 
-        class Ball {
-            constructor(p) {
-                this.x = START_X;
-                this.y = FUNNEL_Y;
-                this.vy = 0;
-                this.row = -1;
-                // Col starts at 0, representing the center. Each turn is +/- 0.5
-                this.col = 0;
-                this.targetX = START_X;
-                this.targetY = START_Y;
-                this.isMoving = true;
-                this.isFalling = true;
-                this.binIndex = -1;
-                this.probability = p;
-                this.currentPegX = START_X; // X position of the peg it is falling towards/from
-            }
+document.getElementById('resetBtn2').addEventListener('click', ()=>{
+isRunning=false; stopDropping(); document.getElementById('toggleText').textContent='Start'; balls=[]; bins = new Array(BINS).fill(0); drawStatic(); document.getElementById('totalCount').textContent=0;
+});
 
-            update() {
-                if (!this.isMoving) return;
 
-                // 1. Initial fall from funnel to first peg
-                if (this.isFalling) {
-                    this.vy += 0.4; // Simulated gravity
-                    this.y += this.vy;
+document.getElementById('singleDrop').addEventListener('click', ()=>{ balls.push(new Ball(probability)); if(!isRunning){ requestAnimationFrame(ts=>{ lastTs=0; animate(ts); }); } });
 
-                    if (this.y >= this.targetY) {
-                        this.y = this.targetY;
-                        this.isFalling = false;
-                        this.row = 0;
-                        this.vy = 0;
-                    }
-                    return;
-                }
 
-                // 2. Movement between pegs
-                const dx = this.targetX - this.x;
-                const dy = this.targetY - this.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
+document.getElementById('speedRange').addEventListener('input',(e)=>{ speed = Number(e.target.value); document.getElementById('speedVal').textContent = speed; });
+document.getElementById('rowsRange').addEventListener('input',(e)=>{ ROWS = Number(e.target.value); BINS = ROWS+1; document.getElementById('rowsVal').textContent = ROWS; bins = new Array(BINS).fill(0); setupLayout(); drawStatic(); });
+document.getElementById('pRange').addEventListener('input',(e)=>{ probability = Number(e.target.value); document.getElementById('pVal').textContent = probability.toFixed(2); drawStatic(); });
+document.getElementById('rateRange').addEventListener('input',(e)=>{ dropRate = Number(e.target.value); document.getElementById('rateVal').textContent = dropRate; if(isRunning){ stopDropping(); startDropping(); } });
 
-                if (dist < 2) {
-                    // Reached the current target peg
-                    this.x = this.targetX;
-                    this.y = this.targetY;
-                    this.row++;
 
-                    if (this.row > ROWS) {
-                        // Reached the final bin level
-                        this.isMoving = false;
-                        // The number of right turns 'k' is directly related to the final column position
-                        // k = final_col + ROWS/2
-                        const k = this.col + ROWS / 2;
-                        this.binIndex = Math.round(k); // Should be an integer 0 to ROWS
-                        return;
-                    }
+function startDropping(){
+if(dropInterval) clearInterval(dropInterval);
+if(dropRate <=0) return;
+const ms = 1000 / dropRate;
+dropInterval = setInterval(()=>{ if(balls.length < 120) balls.push(new Ball(probability)); }, ms);
+}
+function stopDropping(){ if(dropInterval){ clearInterval(dropInterval); dropInterval=null; } }
 
-                    // Decide direction for the next drop
-                    const goRight = Math.random() < this.probability;
 
-                    // k is the number of right steps taken (k=0 to ROWS)
-                    const k = goRight ? this.col + 0.5 : this.col - 0.5;
+function setupLayout(){ // recompute coords based on canvas width
+const cw = canvas.clientWidth;
+START_X = cw/2;
+SPACING = Math.max(32, Math.min(50, (cw*0.9)/(ROWS+2)));
+START_Y = 86; FUNNEL_Y = 26;
+BALL_RADIUS = Math.max(5, SPACING*0.16);
+PEG_RADIUS = Math.max(3, SPACING*0.09);
+bins = new Array(BINS).fill(0);
+}
 
-                    // Update internal col tracker to reflect the number of right turns relative to center
-                    // col_start = -ROWS/2, col_end = ROWS/2
-                    this.col += goRight ? 0.5 : -0.5;
 
+// init
+setupLayout(); drawStatic();
 
-                    // Set new target coordinates for the next row
-                    this.targetX = START_X + this.col * SPACING;
-                    this.targetY = START_Y + this.row * SPACING;
-                } else {
-                    // Move towards the target peg (constant speed motion)
-                    const speedMultiplier = 4; // Constant movement speed
-                    this.x += (dx / dist) * speedMultiplier;
-                    this.y += (dy / dist) * speedMultiplier;
-                }
-            }
-        }
 
-        // --- Drawing Functions ---
+// snapshot exporter
+document.getElementById('snapshotBtn').addEventListener('click', ()=>{
+const link = document.createElement('a'); link.download = 'quincunx-snapshot.png'; link.href = canvas.toDataURL('image/png'); link.click();
+});
 
-        /**
-         * Draws the pegs of the Quincunx board.
-         * @param {CanvasRenderingContext2D} ctx - The canvas context.
-         */
-        const drawPegs = (ctx) => {
-            // Draw funnel
-            ctx.strokeStyle = '#94a3b8';
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.moveTo(START_X - 20, FUNNEL_Y);
-            ctx.lineTo(START_X - 10, START_Y);
-            ctx.moveTo(START_X + 20, FUNNEL_Y);
-            ctx.lineTo(START_X + 10, START_Y);
-            ctx.stroke();
 
-            // Draw pegs
-            ctx.fillStyle = '#3b82f6';
-            for (let row = 0; row < ROWS; row++) {
-                // Determine starting column for this row (e.g., Row 0 starts at col 0)
-                // The first peg in row 'r' is always at a horizontal offset of -(r/2) * SPACING
-                const startCol = -row / 2;
-                for (let i = 0; i <= row; i++) {
-                    const colOffset = startCol + i;
-                    const x = START_X + colOffset * SPACING;
-                    const y = START_Y + row * SPACING;
-                    ctx.beginPath();
-                    ctx.arc(x, y, PEG_RADIUS, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-            }
-        };
+document.getElementById('exportCsvBtn').addEventListener('click', ()=>{
+const rows = ['bin,count']; for(let i=0;i<bins.length;i++){ rows.push(`${i},${bins[i]}`); }
+const blob = new Blob([rows.join('\n')],{type:'text/csv'}); const url = URL.createObjectURL(blob);
+const a = document.createElement('a'); a.href=url; a.download='quincunx-data.csv'; a.click(); URL.revokeObjectURL(url);
+});
 
-        /**
-         * Draws the current positions of the moving balls.
-         * @param {CanvasRenderingContext2D} ctx - The canvas context.
-         * @param {Ball[]} ballsList - The list of active ball objects.
-         */
-        const drawBalls = (ctx, ballsList) => {
-            ballsList.forEach(ball => {
-                // Draw shadow
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
-                ctx.beginPath();
-                ctx.arc(ball.x + 2, ball.y + 2, BALL_RADIUS, 0, Math.PI * 2);
-                ctx.fill();
 
-                // Draw ball with gradient
-                const gradient = ctx.createRadialGradient(
-                    ball.x - 2, ball.y - 2, 1,
-                    ball.x, ball.y, BALL_RADIUS
-                );
-                gradient.addColorStop(0, '#fca5a5'); // Light red
-                gradient.addColorStop(1, '#ef4444'); // Dark red
+// initial values in UI
+document.getElementById('pVal').textContent = probability.toFixed(2);
+document.getElementById('rowsVal').textContent = ROWS;
+document.getElementById('speedVal').textContent = speed;
+document.getElementById('rateVal').textContent = dropRate;
 
-                ctx.fillStyle = gradient;
-                ctx.beginPath();
-                ctx.arc(ball.x, ball.y, BALL_RADIUS, 0, Math.PI * 2);
-                ctx.fill();
 
-                // Add highlight
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-                ctx.beginPath();
-                ctx.arc(ball.x - 2, ball.y - 2, 2, 0, Math.PI * 2);
-                ctx.fill();
-            });
-        };
-
-        /**
-         * Draws the histogram bins and the theoretical distribution line.
-         * @param {CanvasRenderingContext2D} ctx - The canvas context.
-         * @param {number[]} binCounts - The current counts in each bin.
-         */
-        const drawBins = (ctx, binCounts) => {
-            const binWidth = SPACING * 0.8;
-            const binStartY = START_Y + ROWS * SPACING + 20;
-            const totalBalls = binCounts.reduce((a, b) => a + b, 0);
-            const theoretical = getTheoreticalDistribution(totalBalls);
-            const maxCount = Math.max(...binCounts, ...theoretical, 1);
-            const maxHeight = 150;
-
-            // --- Draw theoretical distribution (dashed line) ---
-            if (showTheory && totalBalls > 0) {
-                ctx.strokeStyle = '#f59e0b'; // Amber
-                ctx.lineWidth = 3;
-                ctx.setLineDash([5, 5]);
-                ctx.beginPath();
-
-                // The bin index i (0 to BINS-1) corresponds to 'k' right turns (0 to ROWS)
-                theoretical.forEach((count, i) => {
-                    // Center the point at the middle of the bin position
-                    const x = START_X + (i - ROWS / 2) * SPACING;
-                    const height = (count / maxCount) * maxHeight;
-                    const y = binStartY + maxHeight - height;
-
-                    if (i === 0) {
-                        ctx.moveTo(x, y);
-                    } else {
-                        ctx.lineTo(x, y);
-                    }
-                });
-                ctx.stroke();
-                ctx.setLineDash([]);
-            }
-
-            // --- Draw experimental bins (histogram) ---
-            ctx.fillStyle = '#10b981'; // Green
-            binCounts.forEach((count, i) => {
-                const xCenter = START_X + (i - ROWS / 2) * SPACING;
-                const xStart = xCenter - binWidth / 2;
-                const height = (count / maxCount) * maxHeight;
-                const y = binStartY + maxHeight - height;
-
-                ctx.fillRect(xStart, y, binWidth, height);
-
-                // Draw count label
-                if (count > 0) {
-                    ctx.fillStyle = '#000';
-                    ctx.font = '11px Inter';
-                    ctx.textAlign = 'center';
-                    ctx.fillText(count, xCenter, y - 5);
-                    ctx.fillStyle = '#10b981';
-                }
-            });
-
-            // --- Draw bin labels (k values) ---
-            ctx.fillStyle = '#64748b';
-            ctx.font = '10px Inter';
-            ctx.textAlign = 'center';
-            for (let i = 0; i < BINS; i++) {
-                const x = START_X + (i - ROWS / 2) * SPACING;
-                ctx.fillText(i, x, binStartY + maxHeight + 15);
-            }
-
-            // Draw bin separators (vertical lines)
-            ctx.strokeStyle = '#cbd5e1';
-            ctx.lineWidth = 1;
-            for (let i = 0; i < BINS + 1; i++) {
-                const x = START_X + (i - ROWS / 2 - 0.5) * SPACING;
-                ctx.beginPath();
-                ctx.moveTo(x, binStartY);
-                ctx.lineTo(x, binStartY + maxHeight + 5);
-                ctx.stroke();
-            }
-        };
-
-
-        /**
-         * Draws the statistical formulas and key values on the canvas.
-         * @param {CanvasRenderingContext2D} ctx - The canvas context.
-         */
-        const drawFormula = (ctx) => {
-            const totalBalls = bins.reduce((a, b) => a + b, 0);
-
-            ctx.fillStyle = '#1e293b';
-            ctx.font = 'bold 16px Inter';
-            ctx.textAlign = 'left';
-            ctx.fillText('Binomial Distribution (B(n, p))', 20, 30);
-
-            // Theoretical Formula
-            ctx.font = '12px Inter';
-            const p = probability.toFixed(2);
-            const q = (1 - probability).toFixed(2);
-            // $P(X = k) = C(n, k) \cdot p^k \cdot (1-p)^{n-k}$
-            ctx.fillText(`P(X = k) = C(${ROWS}, k) × ${p}^k × ${q}^(${ROWS}-k)`, 20, 50);
-
-            // Parameters
-            ctx.font = '14px Inter';
-            ctx.fillText(`n = ${ROWS} (rows), p = ${p} (probability of right turn)`, 20, 80);
-
-            // Theoretical Moments
-            const mean = ROWS * probability;
-            const variance = ROWS * probability * (1 - probability);
-            const stdDev = Math.sqrt(variance);
-
-            ctx.fillText(`Theoretical Mean (μ): ${mean.toFixed(2)}`, 20, 110);
-            ctx.fillText(`Std Deviation (σ): ${stdDev.toFixed(2)}`, 20, 130);
-
-            // Experimental Mean
-            if (totalBalls > 0) {
-                const expMean = bins.reduce((sum, count, i) => sum + count * i, 0) / totalBalls;
-                ctx.fillText(`Experimental Mean: ${expMean.toFixed(2)}`, 20, 160);
-            }
-        };
-
-        // --- Main Animation Loop ---
-
-        /**
-         * The main animation and update loop.
-         */
-        const animate = () => {
-            // 1. Clear canvas and redraw static elements
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            drawFormula(ctx);
-            drawPegs(ctx);
-
-            // 2. Update and check ball positions
-            const updatedBalls = [];
-            const newBins = [...bins];
-
-            balls.forEach(ball => {
-                ball.update();
-
-                if (!ball.isMoving && ball.binIndex >= 0 && ball.binIndex < BINS) {
-                    // Ball has settled into a bin
-                    newBins[ball.binIndex]++;
-                } else {
-                    // Ball is still moving, keep it
-                    updatedBalls.push(ball);
-                }
-            });
-
-            balls = updatedBalls;
-            bins = newBins;
-
-            // 3. Draw moving elements
-            drawBalls(ctx, balls);
-            drawBins(ctx, bins);
-
-            // 4. Update DOM metrics
-            document.getElementById('totalBallsCount').textContent = bins.reduce((a, b) => a + b, 0);
-
-            // 5. Request next frame if running
-            if (isRunning) {
-                animationFrameId = requestAnimationFrame(animate);
-            }
-        };
-
-        // --- Control Functions ---
-
-        /**
-         * Toggles the simulation between running and paused states.
-         */
-        const handleToggleRun = () => {
-            isRunning = !isRunning;
-            const runText = document.getElementById('runText');
-            const playIcon = document.getElementById('playIcon');
-            const pauseIcon = document.getElementById('pauseIcon');
-            const probabilitySlider = document.getElementById('probabilitySlider');
-
-            if (isRunning) {
-                runText.textContent = 'Pause';
-                playIcon.classList.add('hidden');
-                pauseIcon.classList.remove('hidden');
-                probabilitySlider.disabled = true; // Lock p value while running
-                startBallInterval();
-                animate(); // Start the drawing loop
-            } else {
-                runText.textContent = 'Start';
-                playIcon.classList.remove('hidden');
-                pauseIcon.classList.add('hidden');
-                probabilitySlider.disabled = false;
-                stopBallInterval();
-                cancelAnimationFrame(animationFrameId); // Stop the drawing loop
-                // Redraw once to ensure final bins are visible if paused
-                drawBins(ctx, bins);
-            }
-        };
-
-        /**
-         * Resets the entire simulation state.
-         */
-        const handleReset = () => {
-            if (isRunning) handleToggleRun(); // Pause first
-
-            balls = [];
-            bins = Array(BINS).fill(0);
-
-            // Clear canvas and redraw initial state
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            drawFormula(ctx);
-            drawPegs(ctx);
-            drawBins(ctx, bins);
-
-            document.getElementById('totalBallsCount').textContent = 0;
-        };
-
-        /**
-         * Toggles the visibility of the theoretical distribution line.
-         */
-        const handleToggleTheory = () => {
-            showTheory = !showTheory;
-            document.getElementById('theoryState').textContent = showTheory ? 'ON' : 'OFF';
-            document.getElementById('theoryToggleBtn').classList.toggle('bg-amber-500', showTheory);
-            document.getElementById('theoryToggleBtn').classList.toggle('bg-gray-300', !showTheory);
-            document.getElementById('theoryToggleBtn').classList.toggle('text-white', showTheory);
-            document.getElementById('theoryToggleBtn').classList.toggle('text-gray-700', !showTheory);
-
-            // Redraw to show/hide the line immediately
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            drawFormula(ctx);
-            drawPegs(ctx);
-            drawBalls(ctx, balls);
-            drawBins(ctx, bins);
-        };
-
-        /**
-         * Starts the interval timer for dropping new balls.
-         */
-        const startBallInterval = () => {
-            if (ballIntervalId) clearInterval(ballIntervalId);
-            const dropRateMs = 1000 / speed;
-            ballIntervalId = setInterval(() => {
-                // Only spawn a new ball if there aren't too many currently active
-                if (balls.length < 50) {
-                    balls.push(new Ball(probability));
-                }
-            }, dropRateMs);
-        };
-
-        /**
-         * Stops the interval timer for dropping new balls.
-         */
-        const stopBallInterval = () => {
-            if (ballIntervalId) {
-                clearInterval(ballIntervalId);
-                ballIntervalId = null;
-            }
-        };
-
-
-        // --- Initialization ---
-
-        const init = () => {
-            canvas = document.getElementById('simulationCanvas');
-            ctx = canvas.getContext('2d');
-
-            // Set initial appearance
-            drawFormula(ctx);
-            drawPegs(ctx);
-            drawBins(ctx, bins);
-
-            // --- Event Listeners ---
-
-            // Start/Pause Button
-            document.getElementById('toggleRunBtn').addEventListener('click', handleToggleRun);
-
-            // Reset Button
-            document.getElementById('resetBtn').addEventListener('click', handleReset);
-
-            // Theory Toggle Button
-            document.getElementById('theoryToggleBtn').addEventListener('click', handleToggleTheory);
-
-            // Speed Slider
-            const speedSlider = document.getElementById('speedSlider');
-            const speedValueSpan = document.getElementById('speedValue');
-            speedSlider.addEventListener('input', (e) => {
-                speed = Number(e.target.value);
-                speedValueSpan.textContent = `${speed}x`;
-                // If running, restart the interval with the new speed
-                if (isRunning) {
-                    stopBallInterval();
-                    startBallInterval();
-                }
-            });
-
-            // Probability Slider
-            const probabilitySlider = document.getElementById('probabilitySlider');
-            const probabilityValueSpan = document.getElementById('probabilityValue');
-            probabilitySlider.addEventListener('input', (e) => {
-                probability = Number(e.target.value);
-                probabilityValueSpan.textContent = probability.toFixed(2);
-                // Immediately redraw to update the theoretical line and formula
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                drawFormula(ctx);
-                drawPegs(ctx);
-                drawBalls(ctx, balls);
-                drawBins(ctx, bins);
-            });
-
-            // Handle responsiveness (optional, but good practice for canvas)
-            const resizeCanvas = () => {
-                const rect = canvas.parentNode.getBoundingClientRect();
-                // We keep the internal canvas resolution (600x700) constant for consistent drawing coordinates
-                // We let CSS scale the canvas to fit the container width
-            };
-            window.addEventListener('resize', resizeCanvas);
-            resizeCanvas(); // Initial call
-        };
-
-        // Initialize the application once the window is fully loaded
-        window.onload = init;
-
-    </script>
+</script>
 </body>
 </html>
