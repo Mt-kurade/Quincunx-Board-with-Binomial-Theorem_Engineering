@@ -15,40 +15,40 @@
     }
     html,body{height:100%;}
     body{
-    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
-    margin:0;
-    background: linear-gradient(180deg,var(--bg-start) 0%, #071029 40%, #071227 100%);
-    -webkit-font-smoothing:antialiased;
-    -moz-osx-font-smoothing:grayscale;
-    color: #e6eef8;
+        font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+        margin:0;
+        background: linear-gradient(180deg,var(--bg-start) 0%, #071029 40%, #071227 100%);
+        -webkit-font-smoothing:antialiased;
+        -moz-osx-font-smoothing:grayscale;
+        color: #e6eef8;
     }
     
     
     /* Card and layout */
     .card{
-    backdrop-filter: blur(6px) saturate(120%);
-    background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));
-    border: 1px solid rgba(255,255,255,0.04);
-    box-shadow: 0 10px 30px rgba(2,6,23,0.6);
-    border-radius: 16px;
+        backdrop-filter: blur(6px) saturate(120%);
+        background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));
+        border: 1px solid rgba(255,255,255,0.04);
+        box-shadow: 0 10px 30px rgba(2,6,23,0.6);
+        border-radius: 16px;
     }
     
     
     /* Canvas responsive sizing, keep internal resolution fixed for coordinates */
     .canvas-wrap{
-    width:100%;
-    max-width:760px;
-    margin:0 auto;
-    display:flex;
-    justify-content:center;
-    padding:18px;
+        width:100%;
+        max-width:760px;
+        margin:0 auto;
+        display:flex;
+        justify-content:center;
+        padding:18px;
     }
     canvas{width:100%; height:auto; border-radius:12px; display:block}
     
     
     /* Nice range appearance (subtle) */
     input[type=range]{
-    -webkit-appearance:none; height:6px; border-radius:999px; background:linear-gradient(90deg,#334155,#06b6d4);
+        -webkit-appearance:none; height:6px; border-radius:999px; background:linear-gradient(90deg,#334155,#06b6d4);
     }
     input[type=range]::-webkit-slider-thumb{ -webkit-appearance:none; width:18px; height:18px; border-radius:999px; background:white; box-shadow: 0 3px 8px rgba(2,6,23,0.5); border:2px solid rgba(0,0,0,0.12)}
     
@@ -63,96 +63,73 @@
     </style>
 </head>
 <body>
-    <div class="container-wrapper bg-gradient-to-br from-slate-100 to-slate-200 p-4 sm:p-8">
-        <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-xl">
-            <h1 class="text-3xl font-extrabold text-center mb-2 text-blue-700">Quincunx Board (Galton)</h1>
-            <p class="text-center text-slate-600 mb-6 font-medium">Binomial vs. Normal Distribution Demonstration</p>
-
-            <!-- Canvas Element -->
-            <canvas
-                id="simulationCanvas"
-                width="600"
-                height="700"
-                class="border-4 border-slate-300 rounded-lg bg-white mx-auto block"
-            ></canvas>
-
-            <!-- Controls -->
-            <div class="flex gap-3 mt-6 justify-center items-center flex-wrap">
-                <!-- Start/Pause Button -->
-                <button
-                    id="toggleRunBtn"
-                    class="control-button flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold shadow-lg"
-                >
-                    <svg id="playIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197 2.132A1 1 0 0110 13.134V8.866a1 1 0 011.555-.832l3.197 2.132a1 1 0 010 1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    <svg id="pauseIcon" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    <span id="runText">Start</span>
-                </button>
-
-                <!-- Reset Button -->
-                <button
-                    id="resetBtn"
-                    class="control-button flex items-center gap-2 px-5 py-2.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-semibold"
-                >
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.91 8.91 0 0120 12a9 9 0 11-9-9.914"></path></svg>
-                    Reset
-                </button>
-
-                <!-- Toggle Theory Button -->
-                <button
-                    id="theoryToggleBtn"
-                    class="control-button flex items-center gap-2 px-5 py-2.5 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors font-semibold"
-                >
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    Theory: <span id="theoryState">ON</span>
-                </button>
-            </div>
-
-            <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <!-- Speed Slider -->
-                <div>
-                    <label for="speedSlider" class="block text-sm font-semibold text-slate-700 mb-2">
-                        Ball Drop Speed: <span id="speedValue">2x</span>
-                    </label>
-                    <input
-                        type="range"
-                        id="speedSlider"
-                        min="1"
-                        max="5"
-                        value="2"
-                        class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer range-lg"
-                    />
-                </div>
-
-                <!-- Probability Slider -->
-                <div>
-                    <label for="probabilitySlider" class="block text-sm font-semibold text-slate-700 mb-2">
-                        Probability (p): <span id="probabilityValue">0.50</span>
-                    </label>
-                    <input
-                        type="range"
-                        id="probabilitySlider"
-                        min="0.1"
-                        max="0.9"
-                        step="0.05"
-                        value="0.5"
-                        class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer range-lg disabled:opacity-50"
-                        disabled
-                    />
-                </div>
-            </div>
-
-            <div class="mt-6 text-center text-sm text-slate-600 space-y-1">
-                <p>Total balls dropped: <span id="totalBallsCount" class="font-bold">0</span></p>
-                <p class="text-xs mt-2">
-                    <span class="inline-block w-4 h-3 bg-green-500 mr-1 rounded-sm"></span> Experimental Data (Histogram)
-                    <span id="theoryLegend" class="mx-2">
-                        <span class="inline-block w-8 h-0.5 bg-amber-500 border-2 border-dashed border-amber-500 mx-2"></span> Theoretical (Binomial)
-                    </span>
-                </p>
-            </div>
-        </div>
+    <div class="min-h-screen flex items-center justify-center p-6">
+    <div class="canvas-wrap">
+    <canvas id="simCanvas" width="760" height="820" class="shadow-inner"></canvas>
     </div>
-
+    
+    
+    <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+    <div class="flex gap-2 items-center">
+    <button id="toggleBtn" class="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-600 shadow-lg font-semibold">
+    <svg id="playSvg" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="white"><path d="M6.5 5.5v9l7-4.5-7-4.5z" /></svg>
+    <span id="toggleText">Start</span>
+    </button>
+    
+    
+    <button id="singleDrop" class="px-3 py-2 pill font-medium">Drop 1</button>
+    <button id="resetBtn2" class="px-3 py-2 pill font-medium">Reset</button>
+    </div>
+    
+    
+    <div class="flex justify-end items-center gap-3">
+    <div class="text-right muted text-sm">
+    <div>Total balls: <span id="totalCount" class="font-bold">0</span></div>
+    <div class="mt-1">Theory: <span id="theoryOn" class="pill">ON</span></div>
+    </div>
+    </div>
+    </div>
+    
+    
+    </div>
+    </div>
+    
+    
+    <hr class="my-5 border-transparent" />
+    
+    
+    <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+    <div>
+    <label class="text-xs muted">Speed</label>
+    <input id="speedRange" type="range" min="0.25" max="4" step="0.25" value="1">
+    <div class="text-sm mt-1">x<span id="speedVal">1</span></div>
+    </div>
+    
+    
+    <div>
+    <label class="text-xs muted">Rows</label>
+    <input id="rowsRange" type="range" min="6" max="16" step="1" value="12">
+    <div class="text-sm mt-1"><span id="rowsVal">12</span> rows</div>
+    </div>
+    
+    
+    <div>
+    <label class="text-xs muted">Probability (p)</label>
+    <input id="pRange" type="range" min="0.1" max="0.9" step="0.01" value="0.5">
+    <div class="text-sm mt-1">p = <span id="pVal">0.50</span></div>
+    </div>
+    
+    
+    <div>
+    <label class="text-xs muted">Drop rate</label>
+    <input id="rateRange" type="range" min="1" max="60" step="1" value="8">
+    <div class="text-sm mt-1"><span id="rateVal">8</span> balls / sec</div>
+    </div>
+    </div>
+    
+    
+    </div>
+    </div>
     <script>
         // --- Configuration Constants ---
         const ROWS = 12;
