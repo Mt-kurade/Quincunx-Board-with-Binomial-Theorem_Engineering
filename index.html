@@ -9,36 +9,60 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
     <style>
-        /* Custom styles for better aesthetics and responsiveness */
-        body {
-            font-family: 'Inter', sans-serif;
-            margin: 0;
-        }
-        .container-wrapper {
-            /* Ensures the wrapper uses the minimum screen height and centers content */
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        #simulationCanvas {
-            /* Responsive canvas sizing */
-            width: 100%;
-            height: auto;
-            max-width: 600px;
-        }
-        .control-button {
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-        .control-button:hover {
-            box-shadow: 0 6px 10px rgba(0, 0, 0, 0.15);
-            transform: translateY(-1px);
-        }
+    :root{
+    --bg-start:#0f172a; /* slate-950 */
+    --bg-end:#0b1220; /* deep indigo */
+    }
+    html,body{height:100%;}
+    body{
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+    margin:0;
+    background: linear-gradient(180deg,var(--bg-start) 0%, #071029 40%, #071227 100%);
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+    color: #e6eef8;
+    }
+    
+    
+    /* Card and layout */
+    .card{
+    backdrop-filter: blur(6px) saturate(120%);
+    background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));
+    border: 1px solid rgba(255,255,255,0.04);
+    box-shadow: 0 10px 30px rgba(2,6,23,0.6);
+    border-radius: 16px;
+    }
+    
+    
+    /* Canvas responsive sizing, keep internal resolution fixed for coordinates */
+    .canvas-wrap{
+    width:100%;
+    max-width:760px;
+    margin:0 auto;
+    display:flex;
+    justify-content:center;
+    padding:18px;
+    }
+    canvas{width:100%; height:auto; border-radius:12px; display:block}
+    
+    
+    /* Nice range appearance (subtle) */
+    input[type=range]{
+    -webkit-appearance:none; height:6px; border-radius:999px; background:linear-gradient(90deg,#334155,#06b6d4);
+    }
+    input[type=range]::-webkit-slider-thumb{ -webkit-appearance:none; width:18px; height:18px; border-radius:999px; background:white; box-shadow: 0 3px 8px rgba(2,6,23,0.5); border:2px solid rgba(0,0,0,0.12)}
+    
+    
+    /* small helper */
+    .muted{color:#9fb0c8}
+    .pill{padding:6px 10px; border-radius:999px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.03)}
+    
+    
+    /* tiny animation for header */
+    .logo-dot{width:10px;height:10px;border-radius:999px;background:linear-gradient(90deg,#f97316,#ef4444);box-shadow:0 6px 18px rgba(239,68,68,0.25);display:inline-block;margin-right:8px}
     </style>
 </head>
 <body>
-
     <div class="container-wrapper bg-gradient-to-br from-slate-100 to-slate-200 p-4 sm:p-8">
         <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-xl">
             <h1 class="text-3xl font-extrabold text-center mb-2 text-blue-700">Quincunx Board (Galton)</h1>
